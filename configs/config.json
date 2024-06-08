@@ -1,0 +1,14 @@
+{
+    "Items": [
+        {
+            "Name": "my-disk-data",
+            "SourceDir": "C:/Windows",
+            "DestDir": "B:/My Windows Backup"
+        },
+        {
+            "Name": "my-google-drive",
+            "SourceDir": "google-drive:",
+            "DestDir": "B:/My Google Drive Backup"
+        }
+    ]
+}
