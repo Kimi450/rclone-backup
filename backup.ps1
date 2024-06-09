@@ -9,6 +9,8 @@ param (
     [switch] $DryRun,
     [Parameter(mandatory=$false)]
     [switch] $ComputeChecksums,
+    [Parameter(mandatory=$false)]
+    [string] $LogBundleBaseDir = "$PWD",
     [Parameter(mandatory=$true)]
     [string] $RcloneBinary,
     [Parameter(mandatory=$true)]
@@ -41,6 +43,9 @@ function Usage {
 
     Write-Log -LogFile LogFile -Message "   "
     Write-Log -LogFile LogFile -Message "Usage: .\backup.ps1 -RcloneConfig <PATH> -BackupConfigJson <PATH> [-RcloneBinary <PATH>] [-DryRun]"
+    Write-Log -LogFile LogFile -Message "   "
+    Write-Log -LogFile LogFile -Message "       -LogBundleBaseDir string    Path to the directory where the log bundles should be generated"
+    Write-Log -LogFile LogFile -Message "                                   (default: `$PWD)"
     Write-Log -LogFile LogFile -Message "   "
     Write-Log -LogFile LogFile -Message "       -RcloneBinary string        Path to the rclone executable"
     Write-Log -LogFile LogFile -Message "   "
@@ -205,12 +210,12 @@ function Sync-Source-And-Destination {
 
 ## Main script
 
-$LOG_DATE_TIME = Get-DateTimeForFile
-$LOG_BUNDLE_DIR = "$PWD\$LOG_DATE_TIME-backup-log-bundle"
-$SCRIPT_LOG_FILE = "$LOG_BUNDLE_DIR\$LOG_DATE_TIME-script-logs.txt"
+$LogDateTime = Get-DateTimeForFile
+$LOG_BUNDLE_DIR = "$LogBundleBaseDir\$LogDateTime-backup-log-bundle"
+$ScriptLogFile = "$LOG_BUNDLE_DIR\$LogDateTime-script-logs.txt"
 
 if ($Help -eq $true) {
-    Usage -LogFile $SCRIPT_LOG_FILE
+    Usage -LogFile $ScriptLogFile
     exit 0
 }
 
@@ -218,13 +223,13 @@ if ($Help -eq $true) {
 New-Item -ItemType Directory -Path $LOG_BUNDLE_DIR -ErrorAction SilentlyContinue
 
 # Validate configuration
-Assert-ValidConfig -LogFile $SCRIPT_LOG_FILE
+Assert-ValidConfig -LogFile $ScriptLogFile
 
 # Update Rclone binary
-Update-Rclone -LogFile $SCRIPT_LOG_FILE
+Update-Rclone -LogFile $ScriptLogFile
 
 # sync every config item
 $CONFIG=Get-Content $BackupConfigJson | Out-String | ConvertFrom-Json -AsHashtable
 foreach ($Item in $CONFIG.Items) {
-    Sync-Source-And-Destination -LogFile $SCRIPT_LOG_FILE -ConfigItem $Item -DryRun $DryRun -ComputeChecksums $ComputeChecksums
+    Sync-Source-And-Destination -LogFile $ScriptLogFile -ConfigItem $Item -DryRun $DryRun -ComputeChecksums $ComputeChecksums
 }

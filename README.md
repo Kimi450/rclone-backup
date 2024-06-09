@@ -74,7 +74,7 @@ Flags can be used in conjunction with one another.
 
 ### Help
 
-To get usage information
+To get more usage information and details about the flags (highly recommended)
 
 ```powershell
 ./backup.ps1 -Help
@@ -85,7 +85,7 @@ To get usage information
 Files are checked with also computing checksums, this obviously takes longer because every file will have its checksum computed (on source and destination). It can be 100 times slower than the [quick check](#quick-check).
 
 ```powershell
-./backup.ps1 -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json -ComputeChecksums
+./backup.ps1 -LogBundleBaseDir B:/backup-logs -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json -ComputeChecksums
 ```
 
 ### Quick Check
@@ -93,7 +93,7 @@ Files are checked with also computing checksums, this obviously takes longer bec
 Files are checked without computing checksums
 
 ```powershell
-./backup.ps1 -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json
+./backup.ps1 -LogBundleBaseDir B:/backup-logs -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json
 ```
 
 ### Dry-run
@@ -103,11 +103,11 @@ No mutations take place with this flag.
 #### Quick Dry run:
 
 ```powershell
-./backup.ps1 -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json -DryRun
+./backup.ps1 -LogBundleBaseDir B:/backup-logs -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json -DryRun
 ```
 
 #### Comprehensive Dry run:
 
 ```powershell
-./backup.ps1 -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json -ComputeChecksums -DryRun
+./backup.ps1 -LogBundleBaseDir B:/backup-logs -RcloneBinary ./rclone.exe -RcloneConfig ./configs/rclone.conf -BackupConfigJson ./configs/config.json -ComputeChecksums -DryRun
 ```
