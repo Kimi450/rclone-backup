@@ -41,33 +41,33 @@ function Usage {
         [string] $LogFile
     )
 
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "Usage: .\backup.ps1 -RcloneConfig <PATH> -BackupConfigJson <PATH> [-RcloneBinary <PATH>] [-DryRun]"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "       -LogBundleBaseDir string    Path to the directory where the log bundles should be generated"
-    Write-Log -LogFile LogFile -Message "                                   (default: `$PWD)"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "       -RcloneBinary string        Path to the rclone executable"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "       -RcloneConfig string        Path to the rclone configuration file"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "                                   When using a remote source you are expected to have set it up already"
-    Write-Log -LogFile LogFile -Message "                                   using '.\rclone.exe config'. This remote's name is to be used in the"
-    Write-Log -LogFile LogFile -Message "                                   the -BackupConfigJson file as the SourceDir. Example: 'google-drive:'"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "                                   Refer to these pages to setup drive and the recommended"
-    Write-Log -LogFile LogFile -Message "                                   client-id and client-secret required for this setup:"
-    Write-Log -LogFile LogFile -Message "                                       - https://rclone.org/drive/"
-    Write-Log -LogFile LogFile -Message "                                       - https://rclone.org/drive/#making-your-own-client-id"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "       -BackupConfigJson string    Path to the script's backup config json file"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "       -DryRun switch              Flag to enable --dry-run mode for the sync operation"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "       -ComputeChecksums switch    Flag to enable --checksum checks for the sync operation"
-    Write-Log -LogFile LogFile -Message "   "
-    Write-Log -LogFile LogFile -Message "       -Help switch                To see this page"
-    Write-Log -LogFile LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "Usage: .\backup.ps1 -RcloneConfig <PATH> -BackupConfigJson <PATH> [-RcloneBinary <PATH>] [-DryRun]"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "       -LogBundleBaseDir string    Path to the directory where the log bundles should be generated"
+    Write-Log -LogFile $LogFile -Message "                                   (default: `$PWD)"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "       -RcloneBinary string        Path to the rclone executable"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "       -RcloneConfig string        Path to the rclone configuration file"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "                                   When using a remote source you are expected to have set it up already"
+    Write-Log -LogFile $LogFile -Message "                                   using '.\rclone.exe config'. This remote's name is to be used in the"
+    Write-Log -LogFile $LogFile -Message "                                   the -BackupConfigJson file as the SourceDir. Example: 'google-drive:'"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "                                   Refer to these pages to setup drive and the recommended"
+    Write-Log -LogFile $LogFile -Message "                                   client-id and client-secret required for this setup:"
+    Write-Log -LogFile $LogFile -Message "                                       - https://rclone.org/drive/"
+    Write-Log -LogFile $LogFile -Message "                                       - https://rclone.org/drive/#making-your-own-client-id"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "       -BackupConfigJson string    Path to the script's backup config json file"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "       -DryRun switch              Flag to enable --dry-run mode for the sync operation"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "       -ComputeChecksums switch    Flag to enable --checksum checks for the sync operation"
+    Write-Log -LogFile $LogFile -Message "   "
+    Write-Log -LogFile $LogFile -Message "       -Help switch                To see this page"
+    Write-Log -LogFile $LogFile -Message "   "
 }
 
 function Exit-OnError {
@@ -214,13 +214,13 @@ $LogDateTime = Get-DateTimeForFile
 $LOG_BUNDLE_DIR = "$LogBundleBaseDir\$LogDateTime-backup-log-bundle"
 $ScriptLogFile = "$LOG_BUNDLE_DIR\$LogDateTime-script-logs.txt"
 
+# create log bundle dir
+New-Item -ItemType Directory -Path $LOG_BUNDLE_DIR -ErrorAction SilentlyContinue
+
 if ($Help -eq $true) {
     Usage -LogFile $ScriptLogFile
     exit 0
 }
-
-# create log bundle dir
-New-Item -ItemType Directory -Path $LOG_BUNDLE_DIR -ErrorAction SilentlyContinue
 
 # Validate configuration
 Assert-ValidConfig -LogFile $ScriptLogFile
