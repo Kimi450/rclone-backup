@@ -6,9 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"runtime"
-	"time"
 
 	"github.com/ansel1/merry/v2"
 	"github.com/go-logr/logr"
@@ -22,8 +22,13 @@ type ScriptArgs struct {
 	RcloneConfig     string
 	Config           string
 
-	DryRun    bool
-	Checksums bool
+	DryRun   bool
+	Checksum bool
+}
+
+type LogFile struct {
+	Path string
+	File *os.File
 }
 
 type BackupConfig struct {
@@ -52,9 +57,9 @@ func parseArgs() (*ScriptArgs, error) {
 	// linux
 	var rcloneBinaryDefault string
 	if runtime.GOOS == "windows" {
-		rcloneBinaryDefault = path.Join(cwd, "configs", "rclone.conf")
+		rcloneBinaryDefault = path.Join(cwd, "rclone.exe")
 	} else {
-		rcloneBinaryDefault = path.Join(cwd, "configs", "rclone.conf")
+		rcloneBinaryDefault = path.Join(cwd, "rclone")
 	}
 
 	logBundleBaseDir := flag.String("log-bundle-base-dir", cwd,
@@ -84,8 +89,8 @@ client-id and client-secret required for this setup:
 	dryRun := flag.Bool("dry-run", false,
 		"Perform a dry-run of the script")
 
-	checksums := flag.Bool("checksums", false,
-		"Verify checksums of the source and destination files")
+	checksum := flag.Bool("checksum", false,
+		"Verify checksum of the source and destination files")
 
 	flag.Parse()
 
@@ -95,14 +100,14 @@ client-id and client-secret required for this setup:
 		RcloneConfig:     *rcloneConfig,
 		Config:           *config,
 		DryRun:           *dryRun,
-		Checksums:        *checksums,
+		Checksum:         *checksum,
 	}
-
 	return args, nil
 }
 
 func GetDateTimeForFile() string {
-	return time.Now().Format("20060102-150405")
+	return "temp"
+	// return time.Now().Format("20060102-150405")
 }
 
 func ValidateArgs(args *ScriptArgs) error {
@@ -118,18 +123,148 @@ func ValidateArgs(args *ScriptArgs) error {
 	return nil
 }
 
-func SyncSourceAndDestination(log logr.Logger, logBundleDir string, backupConfig BackupConfig) error {
+func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
+	rcloneBinary, rcloneConfig string,
+	extraSyncArgs []string, backupConfig BackupConfig) error {
+
 	fileDateTime := GetDateTimeForFile()
 
-	suffix := "test"
-
-	filePath := path.Join(logBundleDir,
-		fmt.Sprintf("%s-%s-%s.log", fileDateTime, backupConfig.Name, suffix))
-	log.Info("creating log file", "filePath", filePath)
-	_, err := os.Create(filePath)
-	if err != nil {
-		return merry.Errorf("failed to create log file: %s", err)
+	logFileSourceFiles := &LogFile{
+		Path: path.Join(logBundleDir,
+			fmt.Sprintf("%s-%s-%s-source-files.json",
+				fileDateTime, fileDateTime, backupConfig.Name)),
 	}
+	logFileDestFilesBeforeSync := &LogFile{
+		Path: path.Join(logBundleDir,
+			fmt.Sprintf("%s-%s-%s-dest-files-before-sync.json",
+				fileDateTime, fileDateTime, backupConfig.Name)),
+	}
+	logFileDestFilesAfterSync := &LogFile{
+		Path: path.Join(logBundleDir,
+			fmt.Sprintf("%s-%s-%s-dest-files-after-sync.json",
+				fileDateTime, fileDateTime, backupConfig.Name)),
+	}
+	logFileSync := &LogFile{
+		Path: path.Join(logBundleDir,
+			fmt.Sprintf("%s-%s-%s-sync-logs.json",
+				fileDateTime, fileDateTime, backupConfig.Name)),
+	}
+	logFileSyncCombinedReport := &LogFile{
+		Path: path.Join(logBundleDir,
+			fmt.Sprintf("%s-%s-%s-sync-report.txt",
+				fileDateTime, fileDateTime, backupConfig.Name)),
+	}
+
+	logFiles := []*LogFile{
+		logFileSourceFiles,
+		logFileDestFilesBeforeSync,
+		logFileDestFilesAfterSync,
+		logFileSync,
+		logFileSyncCombinedReport,
+	}
+
+	for _, logFile := range logFiles {
+		log.Info("creating log file", "filePath", logFile.Path)
+		file, err := os.Create(logFile.Path)
+		if err != nil {
+			return merry.Errorf("failed to create log file '%s': %s",
+				logFile.Path, err)
+		}
+		logFile.File = file
+		defer logFile.File.Close()
+	}
+
+	// Get all the files in source dir
+	log.Info("getting ls data for source directory", "path", backupConfig.SourceDir)
+	err := RunRcloneLsJson(log, logFileSourceFiles.File, rcloneBinary,
+		rcloneConfig, backupConfig.SourceDir)
+	if err != nil {
+		log.Info("WARN: directory does not exist before sync, skipped getting ls data for dir",
+			"path", backupConfig.SourceDir)
+	}
+
+	// Get all the files in destination dir before syncing data
+	log.Info("getting ls data for destination directory before syncing data",
+		"path", backupConfig.DestDir)
+	err = RunRcloneLsJson(log, logFileDestFilesBeforeSync.File, rcloneBinary,
+		rcloneConfig, backupConfig.DestDir)
+	if err != nil {
+		log.Info("WARN: directory does not exist before sync, skipped getting ls data for dir",
+			"path", backupConfig.DestDir)
+	}
+
+	// TODO handle extraargs like checksum and dry run
+
+	// Run the sync command
+	err = RunRcloneSync(log, logFileSync.Path, logFileSyncCombinedReport.Path,
+		rcloneBinary, rcloneConfig, backupConfig.SourceDir, backupConfig.DestDir,
+		extraSyncArgs)
+	if err != nil {
+		return merry.Errorf("failed to sync source and destination: %w", err)
+	}
+
+	// Get all the files in destination dir after syncing data
+	log.Info("getting ls data for destination directory after syncing data",
+		"path", backupConfig.DestDir)
+	err = RunRcloneLsJson(log, logFileDestFilesAfterSync.File, rcloneBinary,
+		rcloneConfig, backupConfig.DestDir)
+	if err != nil {
+		return merry.Errorf("failed to sync source and destination: %w", err)
+	}
+
+	return nil
+}
+
+func RunRcloneLsJson(log logr.Logger, commandOutputLogFile *os.File,
+	rcloneBinary, rcloneConfig, dir string) error {
+
+	cmd := exec.Command(rcloneBinary, "lsjson",
+		"--config", rcloneConfig,
+		"-R", dir)
+	log.Info("running command", "cmd", cmd.String())
+
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+		return merry.Errorf("directory does not exist: %w", err)
+	}
+
+	cmd.Stdout = commandOutputLogFile
+	err := cmd.Run()
+	if err != nil {
+		return merry.Errorf("failed to run command: %w", err)
+	}
+	log.Info("finished running command", "cmd", cmd.String())
+
+	return nil
+}
+
+func RunRcloneSync(log logr.Logger,
+	logFileSyncPath, logFileSyncCombinedReportPath string,
+	rcloneBinary, rcloneConfig, sourceDir, destDir string,
+	extraSyncArgs []string) error {
+
+	cmdArgs := []string{
+		"sync",
+		sourceDir, destDir,
+		"--config", rcloneConfig,
+		"--use-json-log",
+		"--log-level", "DEBUG",
+		"--log-file", logFileSyncPath,
+		"--combined", logFileSyncCombinedReportPath,
+		"--check-first",
+		"--metadata",
+	}
+	cmdArgs = append(cmdArgs, extraSyncArgs...)
+
+	cmd := exec.Command(rcloneBinary, cmdArgs...)
+	// extraSyncArgs
+	log.Info("running command", "cmd", cmd.String())
+
+	cmd.Stdout = os.Stdout
+	err := cmd.Run()
+	if err != nil {
+		return merry.Errorf("failed to run command: %w", err)
+	}
+	log.Info("finished running command", "cmd", cmd.String())
 
 	return nil
 }
@@ -143,7 +278,7 @@ func main() {
 	}
 	defer zapLogger.Sync()
 
-	log := zapr.NewLoggerWithOptions(zapLogger).WithName("rclone-backup")
+	log := zapr.NewLoggerWithOptions(zapLogger)
 
 	scriptArgs, err := parseArgs()
 	if err != nil {
@@ -152,12 +287,14 @@ func main() {
 	}
 
 	log.Info("script args passed", "scriptArgs", scriptArgs)
-
-	if scriptArgs.Checksums {
-		log.Info("checksums will be verified")
+	extraSyncArgs := []string{}
+	if scriptArgs.Checksum {
+		log.Info("checksum will be verified")
+		extraSyncArgs = append(extraSyncArgs, "--checksum")
 	}
 	if scriptArgs.DryRun {
 		log.Info("dry-run mode is set")
+		extraSyncArgs = append(extraSyncArgs, "--dry-run")
 	}
 
 	err = ValidateArgs(scriptArgs)
@@ -185,7 +322,9 @@ func main() {
 
 	for _, backupConfig := range config.Items {
 
-		err := SyncSourceAndDestination(log, logBundleDir, backupConfig)
+		err := SyncSourceAndDestination(log, logBundleDir,
+			scriptArgs.RcloneBinary, scriptArgs.RcloneConfig, extraSyncArgs,
+			backupConfig)
 		if err != nil {
 			log.Error(err, "failed to sync source and destination",
 				"backupConfig", backupConfig)
