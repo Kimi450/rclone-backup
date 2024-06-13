@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strings"
 
 	"github.com/ansel1/merry/v2"
 	"github.com/go-logr/logr"
@@ -39,6 +41,21 @@ type BackupConfig struct {
 
 type Config struct {
 	Items []BackupConfig `json:"items"`
+}
+
+func RunRcloneVersion(log logr.Logger, rcloneBinary, rcloneConfig string) error {
+	cmd := exec.Command(rcloneBinary, "version",
+		"--config", rcloneConfig)
+	log.Info("running command", "cmd", cmd.String())
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return merry.Errorf("failed to run command: %w", err)
+	}
+	log.Info("finished running command", "cmd", cmd.String(),
+		"output", string(output))
+
+	return nil
 }
 
 func parseArgs() (*ScriptArgs, error) {
@@ -193,14 +210,26 @@ func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 			"path", backupConfig.DestDir)
 	}
 
-	// TODO handle extraargs like checksum and dry run
-
 	// Run the sync command
+	log.Info("syncing source and destination",
+		"source", backupConfig.SourceDir,
+		"destination", backupConfig.DestDir,
+		"syncLogs", logFileSync.Path,
+		"syncReport", logFileSyncCombinedReport.Path,
+	)
 	err = RunRcloneSync(log, logFileSync.Path, logFileSyncCombinedReport.Path,
 		rcloneBinary, rcloneConfig, backupConfig.SourceDir, backupConfig.DestDir,
 		extraSyncArgs)
 	if err != nil {
 		return merry.Errorf("failed to sync source and destination: %w", err)
+	}
+
+	log.Info("generating summary of from the report file",
+		"reportFilePath", logFileSyncCombinedReport.Path,
+		"documentation", "https://rclone.org/commands/rclone_sync/")
+	err = OutputReportSummary(log, logFileSyncCombinedReport.Path)
+	if err != nil {
+		return merry.Errorf("failed to generate output report: %w", err)
 	}
 
 	// Get all the files in destination dir after syncing data
@@ -320,8 +349,15 @@ func main() {
 		}
 	}
 
-	for _, backupConfig := range config.Items {
+	log.Info("getting rclone version")
+	err = RunRcloneVersion(log, scriptArgs.RcloneBinary, scriptArgs.RcloneConfig)
+	if err != nil {
+		log.Error(err, "failed to get rclone version")
+		os.Exit(1)
+	}
 
+	for _, backupConfig := range config.Items {
+		log.Info("processing backup item", "config", backupConfig)
 		err := SyncSourceAndDestination(log, logBundleDir,
 			scriptArgs.RcloneBinary, scriptArgs.RcloneConfig, extraSyncArgs,
 			backupConfig)
@@ -330,24 +366,39 @@ func main() {
 				"backupConfig", backupConfig)
 			os.Exit(1)
 		}
+		log.Info("finished processing backup item", "config", backupConfig)
 	}
 }
 
 func OutputReportSummary(log logr.Logger, reportFilePath string) error {
-	log = log.WithValues("reportFilePath", reportFilePath)
-	log.Info("hi output")
+	file, err := os.Open(reportFilePath)
+	if err != nil {
+		return merry.Errorf("failed to open report file")
+	}
+	defer file.Close()
 
+	fileScanner := bufio.NewScanner(file)
+
+	fileScanner.Split(bufio.ScanLines)
+
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		if !strings.HasPrefix(line, "=") {
+			log.Info("non-equal file from report", "line", line)
+		}
+	}
 	return nil
 }
 
 func parseConfigFile(filePath string) (*Config, error) {
-	configFile, err := os.Open(filePath)
+	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, merry.Errorf("failed to open config file")
 	}
+	defer file.Close()
 
 	config := &Config{}
-	jsonParser := json.NewDecoder(configFile)
+	jsonParser := json.NewDecoder(file)
 	if err = jsonParser.Decode(config); err != nil {
 		return nil, merry.Errorf("failed to parse config file")
 	}
