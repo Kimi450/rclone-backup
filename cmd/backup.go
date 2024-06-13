@@ -16,6 +16,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type ScriptArgs struct {
@@ -301,13 +302,30 @@ func RunRcloneSync(log logr.Logger,
 func main() {
 	// TODO implement better logging?
 	// TODO context based stuff
-	zapLogger, err := zap.NewProduction()
+
+	logFile, err := os.OpenFile(
+		path.Join(fmt.Sprintf("%s-script-logs.txt", GetDateTimeForFile())),
+		os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
 	if err != nil {
 		panic(err)
 	}
-	defer zapLogger.Sync()
+	defer logFile.Close()
 
-	log := zapr.NewLoggerWithOptions(zapLogger)
+	// Create a core that writes to both stdout and the log file
+	consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
+	fileEncoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+
+	core := zapcore.NewTee(
+		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zap.DebugLevel),
+		zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), zap.DebugLevel),
+	)
+
+	// Create the logger
+	logger := zap.New(core)
+	defer logger.Sync() // flushes buffer, if any
+
+	// Convert zap logger to logr logger
+	log := zapr.NewLogger(logger)
 
 	scriptArgs, err := parseArgs()
 	if err != nil {
