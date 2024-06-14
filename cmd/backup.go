@@ -14,9 +14,8 @@ import (
 
 	"github.com/ansel1/merry/v2"
 	"github.com/go-logr/logr"
-	"github.com/go-logr/zapr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"rclone-backup.kimi450.com/pkg/io"
+	"rclone-backup.kimi450.com/pkg/logging"
 )
 
 type ScriptArgs struct {
@@ -123,13 +122,7 @@ client-id and client-secret required for this setup:
 	return args, nil
 }
 
-func GetDateTimeForFile() string {
-	return "temp"
-	// return time.Now().Format("20060102-150405")
-}
-
-func ValidateArgs(args *ScriptArgs) error {
-
+func validateArgs(args *ScriptArgs) error {
 	filePaths := []string{args.Config, args.RcloneBinary, args.RcloneConfig}
 
 	for _, filePath := range filePaths {
@@ -143,9 +136,9 @@ func ValidateArgs(args *ScriptArgs) error {
 
 func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 	rcloneBinary, rcloneConfig string,
-	extraSyncArgs []string, backupConfig BackupConfig) error {
-
-	fileDateTime := GetDateTimeForFile()
+	extraSyncArgs []string, backupConfig BackupConfig,
+) error {
+	fileDateTime := io.GetDateTimePrefixForFile()
 
 	logFileSourceFiles := &LogFile{
 		Path: path.Join(logBundleDir,
@@ -246,8 +239,8 @@ func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 }
 
 func RunRcloneLsJson(log logr.Logger, commandOutputLogFile *os.File,
-	rcloneBinary, rcloneConfig, dir string) error {
-
+	rcloneBinary, rcloneConfig, dir string,
+) error {
 	cmd := exec.Command(rcloneBinary, "lsjson",
 		"--config", rcloneConfig,
 		"-R", dir)
@@ -270,8 +263,8 @@ func RunRcloneLsJson(log logr.Logger, commandOutputLogFile *os.File,
 func RunRcloneSync(log logr.Logger,
 	logFileSyncPath, logFileSyncCombinedReportPath string,
 	rcloneBinary, rcloneConfig, sourceDir, destDir string,
-	extraSyncArgs []string) error {
-
+	extraSyncArgs []string,
+) error {
 	cmdArgs := []string{
 		"sync",
 		sourceDir, destDir,
@@ -303,33 +296,37 @@ func main() {
 	// TODO implement better logging?
 	// TODO context based stuff
 
-	logFile, err := os.OpenFile(
-		path.Join(fmt.Sprintf("%s-script-logs.txt", GetDateTimeForFile())),
-		os.O_CREATE|os.O_APPEND|os.O_RDWR, 0777)
-	if err != nil {
-		panic(err)
-	}
-	defer logFile.Close()
-
-	// Create a core that writes to both stdout and the log file
-	consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
-	fileEncoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
-
-	core := zapcore.NewTee(
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zap.DebugLevel),
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), zap.DebugLevel),
-	)
-
-	// Create the logger
-	logger := zap.New(core)
-	defer logger.Sync() // flushes buffer, if any
-
-	// Convert zap logger to logr logger
-	log := zapr.NewLogger(logger)
-
 	scriptArgs, err := parseArgs()
 	if err != nil {
-		log.Error(err, "failed to parse args")
+		panic(fmt.Errorf("failed to parse args: %w", err))
+	}
+
+	err = validateArgs(scriptArgs)
+	if err != nil {
+		panic(fmt.Errorf("failed to validate args: %w", err))
+	}
+
+	logBundleDir := path.Join(scriptArgs.LogBundleBaseDir,
+		io.GetDateTimePrefixForFile()+"-log-bundle")
+	if _, err := os.Stat(logBundleDir); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(logBundleDir, os.ModePerm)
+		if err != nil {
+			panic(fmt.Errorf("failed to create log bundle directory: %w", err))
+		}
+	}
+
+	logFilePath := path.Join(logBundleDir,
+		fmt.Sprintf("%s-script-logs.txt", io.GetDateTimePrefixForFile()))
+	_, log, err := logging.GetDefaultFileAndConsoleLogger(logFilePath, false)
+	if err != nil {
+		panic(fmt.Errorf("failed to setup logger: %w", err))
+	}
+
+	log.Info("log bundle directory", "filePath", logBundleDir)
+
+	config, err := parseConfigFile(scriptArgs.Config)
+	if err != nil {
+		log.Error(err, "failed to parse config")
 		os.Exit(1)
 	}
 
@@ -342,29 +339,6 @@ func main() {
 	if scriptArgs.DryRun {
 		log.Info("dry-run mode is set")
 		extraSyncArgs = append(extraSyncArgs, "--dry-run")
-	}
-
-	err = ValidateArgs(scriptArgs)
-	if err != nil {
-		log.Error(err, "failed to validate config")
-		os.Exit(1)
-	}
-
-	config, err := parseConfigFile(scriptArgs.Config)
-	if err != nil {
-		log.Error(err, "failed to parse config")
-		os.Exit(1)
-	}
-
-	logBundleDir := path.Join(scriptArgs.LogBundleBaseDir,
-		GetDateTimeForFile()+"-log-bundle")
-	if _, err := os.Stat(logBundleDir); errors.Is(err, os.ErrNotExist) {
-		log.Info("creating log bundle directory", "filePath", logBundleDir)
-		err := os.Mkdir(logBundleDir, os.ModeDir)
-		if err != nil {
-			log.Error(err, "failed to create log bundle directory")
-			os.Exit(1)
-		}
 	}
 
 	log.Info("getting rclone version")
