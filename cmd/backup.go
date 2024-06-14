@@ -50,7 +50,7 @@ func RunRcloneVersion(log logr.Logger, rcloneBinary, rcloneConfig string) error 
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return merry.Errorf("failed to run command: %w", err)
+		return merry.Errorf("failed to run command: %s: %w", string(output), err)
 	}
 	log.Info("finished running command", "cmd", cmd.String(),
 		"output", string(output))
@@ -142,28 +142,28 @@ func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 
 	logFileSourceFiles := &LogFile{
 		Path: path.Join(logBundleDir,
-			fmt.Sprintf("%s-%s-%s-source-files.json",
-				fileDateTime, fileDateTime, backupConfig.Name)),
+			fmt.Sprintf("%s-%s-source-files.json",
+				fileDateTime, backupConfig.Name)),
 	}
 	logFileDestFilesBeforeSync := &LogFile{
 		Path: path.Join(logBundleDir,
-			fmt.Sprintf("%s-%s-%s-dest-files-before-sync.json",
-				fileDateTime, fileDateTime, backupConfig.Name)),
+			fmt.Sprintf("%s-%s-dest-files-before-sync.json",
+				fileDateTime, backupConfig.Name)),
 	}
 	logFileDestFilesAfterSync := &LogFile{
 		Path: path.Join(logBundleDir,
-			fmt.Sprintf("%s-%s-%s-dest-files-after-sync.json",
-				fileDateTime, fileDateTime, backupConfig.Name)),
+			fmt.Sprintf("%s-%s-dest-files-after-sync.json",
+				fileDateTime, backupConfig.Name)),
 	}
 	logFileSync := &LogFile{
 		Path: path.Join(logBundleDir,
-			fmt.Sprintf("%s-%s-%s-sync-logs.json",
-				fileDateTime, fileDateTime, backupConfig.Name)),
+			fmt.Sprintf("%s-%s-sync-logs.json",
+				fileDateTime, backupConfig.Name)),
 	}
 	logFileSyncCombinedReport := &LogFile{
 		Path: path.Join(logBundleDir,
-			fmt.Sprintf("%s-%s-%s-sync-report.txt",
-				fileDateTime, fileDateTime, backupConfig.Name)),
+			fmt.Sprintf("%s-%s-sync-report.txt",
+				fileDateTime, backupConfig.Name)),
 	}
 
 	logFiles := []*LogFile{
@@ -251,9 +251,9 @@ func RunRcloneLsJson(log logr.Logger, commandOutputLogFile *os.File,
 	}
 
 	cmd.Stdout = commandOutputLogFile
-	err := cmd.Run()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return merry.Errorf("failed to run command: %w", err)
+		return merry.Errorf("failed to run command: %s: %w", string(output), err)
 	}
 	log.Info("finished running command", "cmd", cmd.String())
 
@@ -277,15 +277,12 @@ func RunRcloneSync(log logr.Logger,
 		"--metadata",
 	}
 	cmdArgs = append(cmdArgs, extraSyncArgs...)
-
 	cmd := exec.Command(rcloneBinary, cmdArgs...)
-	// extraSyncArgs
-	log.Info("running command", "cmd", cmd.String())
 
-	cmd.Stdout = os.Stdout
-	err := cmd.Run()
+	log.Info("running command", "cmd", cmd.String())
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return merry.Errorf("failed to run command: %w", err)
+		return merry.Errorf("failed to run command: %s: %w", string(output), err)
 	}
 	log.Info("finished running command", "cmd", cmd.String())
 
