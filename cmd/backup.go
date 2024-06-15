@@ -116,7 +116,7 @@ func (scriptArgs *ScriptArgs) run() {
 
 	logFilePath := path.Join(logBundleDir,
 		fmt.Sprintf("%s-script-logs.txt", io.GetDateTimePrefixForFile()))
-	_, log, err := logging.GetDefaultFileAndConsoleLogger(logFilePath, true)
+	_, log, err := logging.GetDefaultFileAndConsoleLogger(logFilePath, false)
 	if err != nil {
 		panic(fmt.Errorf("failed to setup logger: %w", err))
 	}
@@ -162,10 +162,10 @@ func (scriptArgs *ScriptArgs) run() {
 }
 
 func main() {
-	// TODO context based stuff
-	// todo create rclone object and associate functions to it?
 	// TODO
-	// - Create a struct with logger and basic configs?
+	// - rclone Create a struct with logger and basic configs?
+	// - update docs
+	// - comtext based stuff so we can cancel early?
 
 	scriptArgs := &ScriptArgs{}
 	err := scriptArgs.parseArgs()
