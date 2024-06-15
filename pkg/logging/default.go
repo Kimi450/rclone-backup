@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// GetDefaultFileAndConsoleLogger configure and creates the logr.Logger instance.
+// GetDefaultFileAndConsoleLogger configures and creates a logr.Logger instance
 func GetDefaultFileAndConsoleLogger(filePath string, jsonEncoding bool) (*zap.Logger, logr.Logger, error) {
 	zapConfig := zap.NewProductionConfig()
 	zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
