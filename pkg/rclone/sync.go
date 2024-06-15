@@ -77,7 +77,7 @@ func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 		rcloneConfig, backupConfig.SourceDir)
 	if err != nil {
 		log.Info("WARN: directory does not exist before sync, skipped getting ls data for dir",
-			"path", backupConfig.SourceDir)
+			"path", backupConfig.SourceDir, "error", err)
 	}
 
 	// Get all the files in destination dir before syncing data
@@ -87,7 +87,7 @@ func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 		rcloneConfig, backupConfig.DestDir)
 	if err != nil {
 		log.Info("WARN: directory does not exist before sync, skipped getting ls data for dir",
-			"path", backupConfig.DestDir)
+			"path", backupConfig.DestDir, "error", err)
 	}
 
 	// Run the sync command

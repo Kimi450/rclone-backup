@@ -48,7 +48,7 @@ func RunSync(log logr.Logger,
 	log.Info("running command", "cmd", cmd.String())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return merry.Errorf("failed to run command: %s: %w", string(output), err)
+		return merry.Errorf("failed to run command with output [%s]: %w", string(output), err)
 	}
 	log.Info("finished running command", "cmd", cmd.String())
 
@@ -68,10 +68,13 @@ func RunLsjson(log logr.Logger, commandOutputLogFile *os.File,
 		return merry.Errorf("directory does not exist: %w", err)
 	}
 
+	cmd.Stderr = commandOutputLogFile
 	cmd.Stdout = commandOutputLogFile
-	output, err := cmd.CombinedOutput()
+	// Has to be Run so we can redirect output to only the file
+	// Too bulky otherwise
+	err := cmd.Run()
 	if err != nil {
-		return merry.Errorf("failed to run command: %s: %w", string(output), err)
+		return merry.Errorf("failed to run command: %w", err)
 	}
 	log.Info("finished running command", "cmd", cmd.String())
 
