@@ -10,7 +10,6 @@ import (
 
 	"github.com/ansel1/merry/v2"
 	"rclone-backup.kimi450.com/pkg/config"
-	"rclone-backup.kimi450.com/pkg/io"
 	"rclone-backup.kimi450.com/pkg/logging"
 	"rclone-backup.kimi450.com/pkg/rclone"
 )
@@ -106,7 +105,7 @@ func (scriptArgs *ScriptArgs) verifyExpectedFilesExist() error {
 
 func (scriptArgs *ScriptArgs) run() {
 	logBundleDir := path.Join(scriptArgs.LogBundleBaseDir,
-		io.GetDateTimePrefixForFile()+"-log-bundle")
+		config.GetDateTimePrefixForFile()+"-log-bundle")
 	if _, err := os.Stat(logBundleDir); errors.Is(err, os.ErrNotExist) {
 		err := os.Mkdir(logBundleDir, os.ModePerm)
 		if err != nil {
@@ -115,7 +114,7 @@ func (scriptArgs *ScriptArgs) run() {
 	}
 
 	logFilePath := path.Join(logBundleDir,
-		fmt.Sprintf("%s-script-logs.txt", io.GetDateTimePrefixForFile()))
+		fmt.Sprintf("%s-script-logs.txt", config.GetDateTimePrefixForFile()))
 	_, log, err := logging.GetDefaultFileAndConsoleLogger(logFilePath, false)
 	if err != nil {
 		panic(fmt.Errorf("failed to setup logger: %w", err))
@@ -164,7 +163,6 @@ func (scriptArgs *ScriptArgs) run() {
 func main() {
 	// TODO
 	// - rclone Create a struct with logger and basic configs?
-	// - update docs
 	// - comtext based stuff so we can cancel early?
 
 	scriptArgs := &ScriptArgs{}

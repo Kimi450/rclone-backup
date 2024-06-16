@@ -8,7 +8,6 @@ import (
 	"github.com/ansel1/merry/v2"
 	"github.com/go-logr/logr"
 	"rclone-backup.kimi450.com/pkg/config"
-	"rclone-backup.kimi450.com/pkg/io"
 	"rclone-backup.kimi450.com/pkg/logging"
 )
 
@@ -23,7 +22,7 @@ func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 	extraSyncArgs []string, backupConfig config.BackupConfigItem,
 ) error {
 	// Create all the log files required as part of this function
-	fileDateTime := io.GetDateTimePrefixForFile()
+	fileDateTime := config.GetDateTimePrefixForFile()
 
 	logFileSourceFiles := &logging.LogFile{
 		Path: path.Join(logBundleDir,
