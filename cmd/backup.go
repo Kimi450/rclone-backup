@@ -139,8 +139,14 @@ func (scriptArgs *ScriptArgs) run() {
 		extraSyncArgs = append(extraSyncArgs, "--dry-run")
 	}
 
+	rcloneInstance := rclone.Rclone{
+		Log:    log,
+		Binary: scriptArgs.RcloneBinary,
+		Config: scriptArgs.RcloneConfig,
+	}
+
 	log.Info("getting rclone version")
-	err = rclone.RunVersion(log, scriptArgs.RcloneBinary, scriptArgs.RcloneConfig)
+	err = rcloneInstance.RunVersion()
 	if err != nil {
 		log.Error(err, "failed to get rclone version")
 		os.Exit(1)
@@ -148,9 +154,8 @@ func (scriptArgs *ScriptArgs) run() {
 
 	for _, backupConfig := range config.BackupConfigItem {
 		log.Info("processing backup item", "config", backupConfig)
-		err := rclone.SyncSourceAndDestination(log, logBundleDir,
-			scriptArgs.RcloneBinary, scriptArgs.RcloneConfig, extraSyncArgs,
-			backupConfig)
+		err := rcloneInstance.SyncSourceAndDestination(logBundleDir,
+			extraSyncArgs, backupConfig)
 		if err != nil {
 			log.Error(err, "failed to sync source and destination",
 				"backupConfig", backupConfig)
@@ -163,7 +168,6 @@ func (scriptArgs *ScriptArgs) run() {
 func main() {
 	// TODO
 	// - rclone Create a struct with logger and basic configs?
-	// - comtext based stuff so we can cancel early?
 
 	scriptArgs := &ScriptArgs{}
 	err := scriptArgs.parseArgs()
