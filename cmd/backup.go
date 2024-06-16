@@ -139,7 +139,7 @@ func (scriptArgs *ScriptArgs) run() {
 		extraSyncArgs = append(extraSyncArgs, "--dry-run")
 	}
 
-	rcloneInstance := rclone.Rclone{
+	rcloneInstance := rclone.RcloneInstance{
 		Log:    log,
 		Binary: scriptArgs.RcloneBinary,
 		Config: scriptArgs.RcloneConfig,
@@ -166,8 +166,6 @@ func (scriptArgs *ScriptArgs) run() {
 }
 
 func main() {
-	// TODO
-	// - rclone Create a struct with logger and basic configs?
 
 	scriptArgs := &ScriptArgs{}
 	err := scriptArgs.parseArgs()

@@ -7,11 +7,12 @@ import (
 
 	"github.com/ansel1/merry/v2"
 	"github.com/go-logr/logr"
+	"rclone-backup.kimi450.com/pkg/config"
 )
 
 // Rclone struct holds the information regarding the rclone instance that will
 // be used
-type Rclone struct {
+type RcloneInstance struct {
 	// Logger
 	Log logr.Logger
 
@@ -22,8 +23,19 @@ type Rclone struct {
 	Config string
 }
 
+type RcloneWorker interface {
+	RunVersion() error
+	RunLsjson(commandOutputLogFile *os.File, dir string) error
+	RunSync(logFileSyncPath, logFileSyncCombinedReportPath, sourceDir, destDir string, extraSyncArgs []string) error
+
+	LogReportSummary(reportFilePath string) error
+
+	SyncSourceAndDestination(logBundleDir string, extraSyncArgs []string,
+		backupConfig config.BackupConfigItem) error
+}
+
 // RunVersion runs the rclone version command with opinionated default arguments
-func (rclone *Rclone) RunVersion() error {
+func (rclone *RcloneInstance) RunVersion() error {
 	cmd := exec.Command(rclone.Binary, "version",
 		"--config", rclone.Config)
 	rclone.Log.Info("running command", "cmd", cmd.String())
@@ -39,7 +51,7 @@ func (rclone *Rclone) RunVersion() error {
 }
 
 // RunSync runs the rclone sync command with opinionated default arguments
-func (rclone *Rclone) RunSync(logFileSyncPath, logFileSyncCombinedReportPath string,
+func (rclone *RcloneInstance) RunSync(logFileSyncPath, logFileSyncCombinedReportPath string,
 	sourceDir, destDir string, extraSyncArgs []string) error {
 
 	cmdArgs := []string{
@@ -67,7 +79,7 @@ func (rclone *Rclone) RunSync(logFileSyncPath, logFileSyncCombinedReportPath str
 }
 
 // RunLsjson runs the rclone lsjon command with opinionated default arguments
-func (rclone *Rclone) RunLsjson(commandOutputLogFile *os.File, dir string) error {
+func (rclone *RcloneInstance) RunLsjson(commandOutputLogFile *os.File, dir string) error {
 	cmd := exec.Command(rclone.Binary, "lsjson",
 		"--config", rclone.Config,
 		"-R", dir)

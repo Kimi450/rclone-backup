@@ -16,7 +16,7 @@ import (
 // keeping purposes and writes them to log files created in this function
 //
 // A summary report is outputed as well for ease of use by viewing script logs
-func (rclone *Rclone) SyncSourceAndDestination(logBundleDir string,
+func (rclone *RcloneInstance) SyncSourceAndDestination(logBundleDir string,
 	extraSyncArgs []string, backupConfig config.BackupConfigItem,
 ) error {
 	// Create all the log files required as part of this function

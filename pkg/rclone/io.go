@@ -10,7 +10,7 @@ import (
 
 // LogReportSummary logs a summary of the report file passed into the function
 // It logs any non-equal files from the report
-func (rclone *Rclone) LogReportSummary(reportFilePath string) error {
+func (rclone *RcloneInstance) LogReportSummary(reportFilePath string) error {
 	file, err := os.Open(reportFilePath)
 	if err != nil {
 		return merry.Errorf("failed to open report file")
