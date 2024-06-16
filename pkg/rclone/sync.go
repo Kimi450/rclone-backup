@@ -105,7 +105,7 @@ func SyncSourceAndDestination(log logr.Logger, logBundleDir string,
 	}
 
 	// Generate a summary from the report file
-	log.Info("generating summary of from the report file",
+	log.Info("generating a summary from the report file",
 		"reportFilePath", logFileSyncCombinedReport.Path,
 		"documentation", "https://rclone.org/commands/rclone_sync/")
 	err = LogReportSummary(log, logFileSyncCombinedReport.Path)
